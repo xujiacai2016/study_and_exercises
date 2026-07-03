@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>增强版 网页扫雷</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="container" id="app">
+    <header class="controls">
+      <div class="left">
+        <label>难度：
+          <select id="difficulty">
+            <option value="easy">简单 (9×9, 10 雷)</option>
+            <option value="medium" selected>中等 (16×16, 40 雷)</option>
+            <option value="hard">困难 (16×30, 99 雷)</option>
+            <option value="custom">自定义</option>
+          </select>
+        </label>
+        <span id="custom-settings" class="hidden">
+          行 <input id="rows" type="number" min="5" max="30" value="16" /> 
+          列 <input id="cols" type="number" min="5" max="50" value="16" /> 
+          雷 <input id="mines" type="number" min="1" max="500" value="40" />
+        </span>
+      </div>
+
+      <div class="center">
+        <button id="newGame">重新开始</button>
+      </div>
+
+      <div class="right">
+        <span class="status">
+          <span>剩余雷：<strong id="remaining">0</strong></span>
+          <span>计时：<strong id="timer">0</strong>s</span>
+        </span>
+        <div class="toolbar">
+          <button id="flagModeBtn" title="移动端：切换插旗模式">插旗模式</button>
+          <button id="themeBtn" title="切换主题 (T)">主题</button>
+          <button id="soundBtn" title="切换音效 (S)">音效</button>
+          <button id="leaderboardBtn" title="查看排行榜">排行榜</button>
+        </div>
+      </div>
+    </header>
+
+    <section id="boardWrap" aria-live="polite">
+      <div id="board" class="board" role="grid" aria-label="扫雷棋盘"></div>
+    </section>
+
+    <footer class="legend">
+      <small>左键翻开，右键插旗（或移动端切换“插旗模式”）。键盘：方向键移动，Enter/空格打开，F 插旗。</small>
+    </footer>
+  </main>
+
+  <!-- 排行榜模态 -->
+  <div id="leaderboardModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="lbTitle">
+    <div class="modal-content">
+      <h3 id="lbTitle">排行榜</h3>
+      <div class="lb-controls">
+        <label>筛选：
+          <select id="lbFilter">
+            <option value="easy">简单</option>
+            <option value="medium" selected>中等</option>
+            <option value="hard">困难</option>
+            <option value="custom">自定义</option>
+            <option value="all">全部</option>
+          </select>
+        </label>
+        <button id="clearLbBtn">清空排行榜</button>
+      </div>
+      <ol id="lbList"></ol>
+      <div class="modal-actions">
+        <button id="closeLb">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
