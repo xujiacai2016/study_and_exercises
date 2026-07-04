@@ -562,3 +562,20 @@
   window.Minesweeper = { startGame, openLeaderboard };
 
 })();
+
+// 安全绑定关闭按钮，避免脚本错误导致未绑定
+const closeBtn = document.getElementById('closeLb');
+if (closeBtn) {
+  closeBtn.addEventListener('click', () => {
+    try {
+      hideLeaderboard();
+    } catch (err) {
+      console.error('hideLeaderboard() 调用失败：', err);
+      // 作为后备，直接操作 DOM 隐藏模态
+      const modal = document.getElementById('leaderboardModal');
+      if (modal) modal.classList.add('hidden');
+    }
+  });
+} else {
+  console.warn('关闭按钮 closeLb 未找到 —— 请检查 index.html 中按钮 id 是否为 closeLb');
+}
