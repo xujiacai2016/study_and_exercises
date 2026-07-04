@@ -11,6 +11,7 @@
   --shadow: 0 6px 18px rgba(20,30,70,0.08);
   --focus: 0 0 0 3px rgba(25,118,210,0.14);
 }
+.hidden { display: none !important; }
 /* Dark theme variables (applied via .theme-dark on body) */
 body.theme-dark{
   --bg: #0f1724;
