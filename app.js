@@ -1,5 +1,5 @@
-// 增强版扫雷游戏（动画/主题/音效/排行榜/无障碍/键盘）
-// 说明：把 index.html, style.css, app.js 放同一目录并在浏览器打开 index.html
+// 增强版扫雷（魔兽风格 3D + 简单模式提示 + 无障碍 + 排行榜）
+// 把 index.html, style.css, app.js 放在同一目录并打开 index.html
 
 (() => {
   // DOM
@@ -25,22 +25,17 @@
 
   // state
   let rows = 16, cols = 16, mines = 40;
-  let grid = []; // cell objects
+  let grid = []; // {mine, num, state}
   let started = false, finished = false;
-  let remaining = 0;
-  let timer = 0, timerId = null;
+  let remaining = 0, timer = 0, timerId = null;
   let flagMode = false;
   let theme = localStorage.getItem('ms_theme') || 'light';
   let soundOn = localStorage.getItem('ms_sound') !== 'false';
   const LB_KEY = 'minesweeper_leaderboard_v1';
 
-  // WebAudio simple sound generator
+  // Audio
   let audioCtx = null;
-  function ensureAudio(){
-    if (!audioCtx) {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-  }
+  function ensureAudio(){ if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
   function playSound(type){
     if (!soundOn) return;
     try {
@@ -58,20 +53,18 @@
       o.start();
       g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.25);
       o.stop(ctx.currentTime + 0.26);
-    } catch (e) {
-      // ignore
-    }
+    } catch(e) { /* ignore */ }
   }
 
   // theming
   function applyTheme(t){
     theme = t;
-    document.body.classList.remove('theme-dark','theme-color');
+    document.body.classList.remove('theme-dark','theme-color','theme-wow');
     if (t === 'dark') document.body.classList.add('theme-dark');
     if (t === 'color') document.body.classList.add('theme-color');
+    if (t === 'wow') document.body.classList.add('theme-wow');
     localStorage.setItem('ms_theme', t);
   }
-  // restore theme
   applyTheme(localStorage.getItem('ms_theme') || 'light');
   soundOn = localStorage.getItem('ms_sound') !== 'false';
   updateSoundBtn();
@@ -80,15 +73,12 @@
   difficulty.addEventListener('change', () => {
     customSettings.classList.toggle('hidden', difficulty.value !== 'custom');
     setDifficultyFromUI();
+    if (difficulty.value === 'easy') startHintLoop(); else stopHintLoop();
   });
   newGameBtn.addEventListener('click', startGame);
-  flagModeBtn.addEventListener('click', () => {
-    flagMode = !flagMode;
-    updateFlagModeBtn();
-  });
+  flagModeBtn.addEventListener('click', () => { flagMode = !flagMode; updateFlagModeBtn(); });
   themeBtn.addEventListener('click', () => {
-    // cycle themes: light -> dark -> color -> light
-    const next = theme === 'light' ? 'dark' : (theme === 'dark' ? 'color' : 'light');
+    const next = theme === 'light' ? 'wow' : (theme === 'wow' ? 'dark' : (theme === 'dark' ? 'color' : 'light'));
     applyTheme(next);
   });
   soundBtn.addEventListener('click', () => {
@@ -96,20 +86,19 @@
     localStorage.setItem('ms_sound', soundOn);
     updateSoundBtn();
   });
-  leaderboardBtn.addEventListener('click', () => { openLeaderboard(); });
-
-  closeLb.addEventListener('click', () => hideLeaderboard());
-  lbFilter.addEventListener('change', renderLeaderboard);
-  clearLbBtn.addEventListener('click', () => {
+  leaderboardBtn.addEventListener('click', () => openLeaderboard());
+  closeLb && closeLb.addEventListener('click', () => hideLeaderboard());
+  clearLbBtn && clearLbBtn.addEventListener('click', () => {
     if (!confirm('确定要清空排行榜吗？')) return;
     localStorage.removeItem(LB_KEY);
     renderLeaderboard();
   });
+  lbFilter && lbFilter.addEventListener('change', renderLeaderboard);
 
-  // keyboard controls: arrow移动、Enter/Space 打开、F 插旗、M 切换插旗模式
+  // keyboard
   document.addEventListener('keydown', (e) => {
     if (finished && e.key === 'r') startGame();
-    if (e.target && e.target.tagName === 'INPUT') return; // avoid interfering with inputs
+    if (e.target && e.target.tagName === 'INPUT') return;
     if (!boardEl.contains(document.activeElement)) return;
     const focused = document.activeElement;
     if (!focused || !focused.classList.contains('cell')) return;
@@ -127,17 +116,13 @@
       if (e.shiftKey) toggleFlag(r,c);
       else openCell(r,c);
     } else if (e.key.toLowerCase() === 'f'){
-      e.preventDefault();
-      toggleFlag(r,c);
+      e.preventDefault(); toggleFlag(r,c);
     } else if (e.key.toLowerCase() === 'm'){
-      e.preventDefault();
-      flagMode = !flagMode; updateFlagModeBtn();
+      e.preventDefault(); flagMode = !flagMode; updateFlagModeBtn();
     } else if (e.key.toLowerCase() === 't'){
-      e.preventDefault();
-      themeBtn.click();
+      e.preventDefault(); themeBtn.click();
     } else if (e.key.toLowerCase() === 's'){
-      e.preventDefault();
-      soundBtn.click();
+      e.preventDefault(); soundBtn.click();
     }
   });
 
@@ -150,20 +135,11 @@
     else { rows = parseInt(rowsInput.value)||10; cols = parseInt(colsInput.value)||10; mines = parseInt(minesInput.value)||10; }
   }
 
-  function updateFlagModeBtn(){
-    flagModeBtn.style.background = flagMode ? '#ffdede' : '';
-    flagModeBtn.textContent = flagMode ? '插旗模式：开' : '插旗模式';
-  }
-  function updateSoundBtn(){
-    soundBtn.textContent = soundOn ? '音效：开' : '音效：关';
-  }
+  function updateFlagModeBtn(){ flagModeBtn.style.background = flagMode ? '#ffdede' : ''; flagModeBtn.textContent = flagMode ? '插旗模式：开' : '插旗模式'; }
+  function updateSoundBtn(){ soundBtn.textContent = soundOn ? '音效：开' : '音效：关'; }
 
   // timer
-  function startTimer(){
-    if (timerId) clearInterval(timerId);
-    timer = 0; timerEl.textContent = '0';
-    timerId = setInterval(()=> { timer++; timerEl.textContent = timer; }, 1000);
-  }
+  function startTimer(){ if (timerId) clearInterval(timerId); timer = 0; timerEl.textContent = '0'; timerId = setInterval(()=> { timer++; timerEl.textContent = timer; }, 1000); }
   function stopTimer(){ if(timerId) clearInterval(timerId); timerId = null; }
 
   // start game
@@ -198,9 +174,10 @@
     remaining = mines; remainingEl.textContent = remaining;
     updateFlagModeBtn();
     renderAll();
+    // hint loop control
+    if (difficulty.value === 'easy') startHintLoop(); else stopHintLoop();
   }
 
-  // place mines randomly
   function placeMines(){
     let placed = 0;
     const total = rows*cols;
@@ -214,6 +191,7 @@
       placed++;
     }
   }
+
   function computeNumbers(){
     for(let r=0;r<rows;r++){
       for(let c=0;c<cols;c++){
@@ -231,13 +209,12 @@
     }
   }
 
-  // attach events to a cell
+  // attach events to cell
   function attachCellEvents(cell){
     cell.addEventListener('click', (e) => {
       if (finished) return;
       const r = +cell.dataset.r, c = +cell.dataset.c;
-      if (flagMode) toggleFlag(r,c);
-      else openCell(r,c);
+      if (flagMode) toggleFlag(r,c); else openCell(r,c);
     });
     cell.addEventListener('contextmenu', (e) => {
       e.preventDefault();
@@ -245,18 +222,14 @@
       const r = +cell.dataset.r, c = +cell.dataset.c;
       toggleFlag(r,c);
     });
-    // double click: highlight neighbors then chord open
     cell.addEventListener('dblclick', (e) => {
       if (finished) return;
       const r = +cell.dataset.r, c = +cell.dataset.c;
-      highlightNeighbors(r,c, 300);
+      highlightNeighbors(r,c,300);
       setTimeout(()=> chordOpen(r,c), 320);
     });
 
-    // focus handling for aria labels
-    cell.addEventListener('focus', (e) => {
-      updateCellAria(+cell.dataset.r, +cell.dataset.c);
-    });
+    cell.addEventListener('focus', (e) => updateCellAria(+cell.dataset.r, +cell.dataset.c));
 
     // touch longpress to flag
     let touchTimer = null;
@@ -278,10 +251,7 @@
     const idx = r*cols + c;
     const el = boardEl.children[idx];
     if (!el) return;
-    // set tabindex
-    for (let i=0;i<boardEl.children.length;i++){
-      boardEl.children[i].setAttribute('tabindex','-1');
-    }
+    for (let i=0;i<boardEl.children.length;i++) boardEl.children[i].setAttribute('tabindex','-1');
     el.setAttribute('tabindex','0');
     el.focus();
   }
@@ -301,7 +271,7 @@
     el.setAttribute('aria-label', label);
   }
 
-  // toggle flag
+  // flag
   function toggleFlag(r,c){
     const g = grid[r][c];
     if (g.state === 'open') return;
@@ -312,15 +282,13 @@
     checkWin();
   }
 
-  // open cell
+  // open
   function openCell(r,c){
     if (!started){
       started = true;
       startTimer();
-      // ensure first click not mine: relocate mine if necessary
       if (grid[r][c].mine){
         grid[r][c].mine = false;
-        // find first non-mine cell to place it
         outer:
         for(let i=0;i<rows;i++){
           for(let j=0;j<cols;j++){
@@ -347,7 +315,6 @@
     checkWin();
   }
 
-  // flood fill open zeros
   function floodOpen(sr,sc){
     const stack = [[sr,sc]];
     const visited = new Set();
@@ -374,7 +341,6 @@
     }
   }
 
-  // chord open (双击在已开的格上，根据插旗数量打开周围)
   function chordOpen(r,c){
     const g = grid[r][c];
     if (g.state !== 'open' || g.num <= 0) return;
@@ -410,7 +376,6 @@
     }
   }
 
-  // highlight neighbors (visual cue for double click)
   function highlightNeighbors(r,c, duration=300){
     const nodes = [];
     for(let dr=-1;dr<=1;dr++){
@@ -425,7 +390,6 @@
     setTimeout(()=> nodes.forEach(n => n.classList.remove('highlight')), duration);
   }
 
-  // reveal all mines on game over
   function revealMines(triggerR, triggerC){
     finished = true; stopTimer();
     playSound('explode');
@@ -435,13 +399,11 @@
         if (g.mine) g.state = 'open';
       }
     }
-    // mark triggered mine specially
     const triggerIdx = triggerR*cols + triggerC;
     const trigEl = boardEl.children[triggerIdx];
     if (trigEl) trigEl.classList.add('mine');
   }
 
-  // check win condition
   function checkWin(){
     if (finished) return;
     let allOk = true;
@@ -473,7 +435,7 @@
     }, 50);
   }
 
-  // rendering
+  // render
   function renderAll(){
     for(let r=0;r<rows;r++){
       for(let c=0;c<cols;c++) renderCell(r,c);
@@ -486,52 +448,27 @@
     const g = grid[r][c];
     cellEl.className = 'cell';
     cellEl.textContent = '';
-    if (g.state === 'hidden'){
-      // nothing
-    } else if (g.state === 'flag'){
-      cellEl.classList.add('flag');
-      cellEl.textContent = '⚑';
+    if (g.state === 'hidden'){ }
+    else if (g.state === 'flag'){
+      cellEl.classList.add('flag'); cellEl.textContent = '⚑';
     } else if (g.state === 'open'){
       cellEl.classList.add('open');
-      if (g.mine){
-        cellEl.classList.add('mine');
-        cellEl.textContent = '💣';
-      } else if (g.num > 0){
-        cellEl.textContent = g.num;
-        cellEl.classList.add(`number-${g.num}`);
-      }
+      if (g.mine){ cellEl.classList.add('mine'); cellEl.textContent = '💣'; }
+      else if (g.num > 0){ cellEl.textContent = g.num; cellEl.classList.add(`number-${g.num}`); }
     }
-    // update aria
     updateCellAria(r,c);
-    // small reveal animation
     if (g.state === 'open') {
       cellEl.classList.add('reveal');
       setTimeout(()=> cellEl.classList.remove('reveal'), 160);
     }
   }
 
-  // Leaderboard (stored in localStorage)
-  function loadLeaderboard(){
-    try {
-      const raw = localStorage.getItem(LB_KEY);
-      return raw ? JSON.parse(raw) : [];
-    } catch (e) { return []; }
-  }
-  function saveLeaderboardList(list){
-    localStorage.setItem(LB_KEY, JSON.stringify(list));
-  }
-  function saveLeaderboardEntry(name, meta){
-    const list = loadLeaderboard();
-    list.push(Object.assign({name}, meta));
-    saveLeaderboardList(list);
-  }
-  function openLeaderboard(filter){
-    lbModal.classList.remove('hidden');
-    lbFilter.value = filter || 'medium';
-    renderLeaderboard();
-  }
+  // Leaderboard (localStorage)
+  function loadLeaderboard(){ try{ const raw = localStorage.getItem(LB_KEY); return raw ? JSON.parse(raw) : []; } catch(e){ return []; } }
+  function saveLeaderboardList(list){ localStorage.setItem(LB_KEY, JSON.stringify(list)); }
+  function saveLeaderboardEntry(name, meta){ const list = loadLeaderboard(); list.push(Object.assign({name}, meta)); saveLeaderboardList(list); }
+  function openLeaderboard(filter){ lbModal.classList.remove('hidden'); lbFilter.value = filter || 'medium'; renderLeaderboard(); }
   function hideLeaderboard(){ lbModal.classList.add('hidden'); }
-
   function renderLeaderboard(){
     const all = loadLeaderboard();
     const filter = lbFilter.value;
@@ -540,12 +477,9 @@
       if (filter === 'custom') filtered = all.filter(x => x.difficulty === 'custom');
       else filtered = all.filter(x => x.difficulty === filter);
     }
-    // sort by time asc
     filtered.sort((a,b) => a.time - b.time);
     lbList.innerHTML = '';
-    if (filtered.length === 0) {
-      lbList.innerHTML = '<li>暂无记录</li>'; return;
-    }
+    if (filtered.length === 0) { lbList.innerHTML = '<li>暂无记录</li>'; return; }
     const top = filtered.slice(0, 50);
     top.forEach((it) => {
       const li = document.createElement('li');
@@ -555,27 +489,47 @@
     });
   }
 
+  // Hint loop for easy mode
+  let hintIntervalId = null;
+  function startHintLoop(){
+    stopHintLoop();
+    try {
+      if (difficulty && difficulty.value === 'easy') {
+        hintIntervalId = setInterval(() => {
+          try {
+            const candidates = [];
+            for (let r=0;r<rows;r++){
+              for (let c=0;c<cols;c++){
+                const g = grid[r][c];
+                if (g && g.state === 'hidden' && !g.mine) candidates.push([r,c]);
+              }
+            }
+            if (candidates.length === 0) return;
+            const idx = Math.floor(Math.random() * candidates.length);
+            const [hr,hc] = candidates[idx];
+            const el = boardEl.children[hr*cols + hc];
+            if (!el) return;
+            el.classList.add('hint');
+            setTimeout(()=> el.classList.remove('hint'), 1300);
+          } catch(e){ console.warn('hint loop inner error', e); }
+        }, 4500 + Math.floor(Math.random()*2500)); // 4.5s ~ 7s
+      }
+    } catch(e){ console.warn('startHintLoop error', e); }
+  }
+  function stopHintLoop(){ if (hintIntervalId){ clearInterval(hintIntervalId); hintIntervalId = null; } }
+
+  // Safe binding for close button (in case script loaded before DOM)
+  (function safeCloseBind(){
+    function safeHide(){ try{ hideLeaderboard(); } catch(err){ console.error('hideLeaderboard() failed:', err); const modal = document.getElementById('leaderboardModal'); if (modal) modal.classList.add('hidden'); } }
+    if (document.readyState === 'loading'){
+      document.addEventListener('DOMContentLoaded', () => { if (closeLb) closeLb.addEventListener('click', safeHide); });
+    } else { if (closeLb) closeLb.addEventListener('click', safeHide); }
+  })();
+
   // initial game
   startGame();
 
-  // expose startGame for dev console if needed
+  // expose for debug
   window.Minesweeper = { startGame, openLeaderboard };
 
 })();
-
-// 安全绑定关闭按钮，避免脚本错误导致未绑定
-const closeBtn = document.getElementById('closeLb');
-if (closeBtn) {
-  closeBtn.addEventListener('click', () => {
-    try {
-      hideLeaderboard();
-    } catch (err) {
-      console.error('hideLeaderboard() 调用失败：', err);
-      // 作为后备，直接操作 DOM 隐藏模态
-      const modal = document.getElementById('leaderboardModal');
-      if (modal) modal.classList.add('hidden');
-    }
-  });
-} else {
-  console.warn('关闭按钮 closeLb 未找到 —— 请检查 index.html 中按钮 id 是否为 closeLb');
-}

@@ -3,15 +3,19 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>增强版 网页扫雷</title>
+  <title>魔兽风格 - 网页扫雷</title>
+
+  <!-- 可选魔幻风格字体 -->
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
+
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <main class="container" id="app">
-    <header class="controls">
+    <header class="controls" role="region" aria-label="游戏控制区">
       <div class="left">
         <label>难度：
-          <select id="difficulty">
+          <select id="difficulty" aria-label="难度选择">
             <option value="easy">简单 (9×9, 10 雷)</option>
             <option value="medium" selected>中等 (16×16, 40 雷)</option>
             <option value="hard">困难 (16×30, 99 雷)</option>
@@ -26,15 +30,15 @@
       </div>
 
       <div class="center">
-        <button id="newGame">重新开始</button>
+        <button id="newGame" aria-label="重新开始">重新开始</button>
       </div>
 
       <div class="right">
-        <span class="status">
+        <span class="status" aria-live="polite">
           <span>剩余雷：<strong id="remaining">0</strong></span>
           <span>计时：<strong id="timer">0</strong>s</span>
         </span>
-        <div class="toolbar">
+        <div class="toolbar" role="toolbar" aria-label="工具栏">
           <button id="flagModeBtn" title="移动端：切换插旗模式">插旗模式</button>
           <button id="themeBtn" title="切换主题 (T)">主题</button>
           <button id="soundBtn" title="切换音效 (S)">音效</button>
@@ -47,14 +51,14 @@
       <div id="board" class="board" role="grid" aria-label="扫雷棋盘"></div>
     </section>
 
-    <footer class="legend">
+    <footer class="legend" role="contentinfo">
       <small>左键翻开，右键插旗（或移动端切换“插旗模式”）。键盘：方向键移动，Enter/空格打开，F 插旗。</small>
     </footer>
   </main>
 
   <!-- 排行榜模态 -->
   <div id="leaderboardModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="lbTitle">
-    <div class="modal-content">
+    <div class="modal-content" role="document">
       <h3 id="lbTitle">排行榜</h3>
       <div class="lb-controls">
         <label>筛选：
@@ -70,7 +74,7 @@
       </div>
       <ol id="lbList"></ol>
       <div class="modal-actions">
-        <button id="closeLb" onclick="alert('close clicked')">关闭</button>
+        <button id="closeLb">关闭</button>
       </div>
     </div>
   </div>
